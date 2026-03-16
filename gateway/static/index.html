@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DecentralizedLLM - Live Token Flow</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      margin: 0;
+      padding: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #58a6ff;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #8b949e;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .input-row input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 1rem;
+    }
+    .input-row input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+    .input-row button {
+      padding: 0.75rem 1.5rem;
+      background: #238636;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .input-row button:hover {
+      background: #2ea043;
+    }
+    .input-row button:disabled {
+      background: #21262d;
+      color: #8b949e;
+      cursor: not-allowed;
+    }
+    .pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #161b22;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
+    .node {
+      flex: 1;
+      text-align: center;
+      padding: 1rem;
+      border-radius: 6px;
+      color: #8b949e;
+      cursor: default;
+      transition: all 0.2s;
+    }
+    .node.active {
+      background: #1f6feb;
+      color: white;
+      box-shadow: 0 0 12px rgba(31, 111, 235, 0.5);
+    }
+    .node.done {
+      background: #238636;
+      color: white;
+    }
+    .node-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .node-desc {
+      font-size: 0.75rem;
+      opacity: 0.9;
+    }
+    .arrow {
+      color: #30363d;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    .output {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      padding: 1rem;
+      background: #161b22;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      min-height: 80px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .output .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1.2em;
+      background: #58a6ff;
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+    .status {
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-top: 1rem;
+    }
+    .error {
+      color: #f85149;
+      padding: 1rem;
+      background: rgba(248, 81, 73, 0.1);
+      border-radius: 6px;
+      margin-top: 1rem;
+    }
+    .token-count {
+      color: #58a6ff;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <h1>DecentralizedLLM</h1>
+  <p class="subtitle">Watch tokens flow through the pipeline in real time</p>
+
+  <div class="input-row">
+    <input type="text" id="prompt" placeholder="Type a message..." value="Hi" />
+    <button id="send" disabled>Send</button>
+  </div>
+
+  <div class="pipeline">
+    <div class="node" id="node0" data-node="0">
+      <div class="node-label">Node 0</div>
+      <div class="node-desc">Layers 0–7</div>
+    </div>
+    <span class="arrow">→</span>
+    <div class="node" id="node1" data-node="1">
+      <div class="node-label">Node 1</div>
+      <div class="node-desc">Layers 8–15</div>
+    </div>
+    <span class="arrow">→</span>
+    <div class="node" id="node2" data-node="2">
+      <div class="node-label">Node 2</div>
+      <div class="node-desc">Layers 16–23</div>
+    </div>
+  </div>
+
+  <div class="output" id="output"></div>
+  <div class="status" id="status"></div>
+  <div class="error" id="error" style="display: none;"></div>
+
+  <script>
+    const API_KEY = 'sridhar-intern-2026';
+    const baseUrl = window.location.origin;
+
+    const promptInput = document.getElementById('prompt');
+    const sendBtn = document.getElementById('send');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+    const nodes = [document.getElementById('node0'), document.getElementById('node1'), document.getElementById('node2')];
+
+    function setNodeActive(nodeIdx) {
+      nodes.forEach((n, i) => {
+        n.classList.remove('active', 'done');
+        if (i < nodeIdx) n.classList.add('done');
+        else if (i === nodeIdx) n.classList.add('active');
+      });
+    }
+
+    function clearNodes() {
+      nodes.forEach(n => n.classList.remove('active', 'done'));
+    }
+
+    async function sendMessage() {
+      const text = promptInput.value.trim();
+      if (!text) return;
+
+      sendBtn.disabled = true;
+      errorEl.style.display = 'none';
+      output.textContent = '';
+      status.textContent = 'Connecting...';
+      clearNodes();
+
+      try {
+        const resp = await fetch(`${baseUrl}/v1/chat/completions/stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': API_KEY,
+          },
+          body: JSON.stringify({
+            model: 'Qwen/Qwen2.5-0.5B-Instruct',
+            messages: [{ role: 'user', content: text }],
+            max_tokens: 32,
+          }),
+        });
+
+        if (!resp.ok) {
+          const ct = resp.headers.get('content-type') || '';
+          const err = ct.includes('json')
+            ? await resp.json().catch(() => ({}))
+            : { detail: await resp.text().catch(() => resp.statusText) };
+          throw new Error(err.detail || err.message || `Request failed (${resp.status})`);
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let tokenCount = 0;
+        let streamError = null;
+
+        function processLine(line) {
+          if (!line.startsWith('data: ')) return;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.event === 'start') status.textContent = `Generating... (${data.prompt_tokens} prompt tokens)`;
+            else if (data.event === 'at_node') { setNodeActive(data.node); status.textContent = `Token ${tokenCount + 1}: at node ${data.node}`; }
+            else if (data.event === 'token_done') { tokenCount++; output.textContent += data.content; clearNodes(); status.textContent = `Token ${tokenCount} generated: "${data.content}"`; }
+            else if (data.event === 'error') streamError = data.detail || 'Stream error';
+            else if (data.event === 'done') {
+              status.textContent = data.finish_reason === 'error'
+                ? (streamError ? `Error: ${streamError}` : `Error. ${status.textContent}`)
+                : `Done. Generated ${tokenCount} tokens.`;
+              clearNodes();
+            }
+          } catch (e) { /* partial lines */ }
+        }
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (value) buffer += decoder.decode(value, { stream: !done });
+          const lines = buffer.split('\n');
+          buffer = done ? '' : (lines.pop() || '');
+
+          for (const line of lines) processLine(line);
+          if (streamError) { errorEl.textContent = streamError; errorEl.style.display = 'block'; status.textContent = 'Error'; clearNodes(); break; }
+          if (done) break;
+        }
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+        status.textContent = 'Error';
+        clearNodes();
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    promptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // Check if API is ready
+    fetch(`${baseUrl}/health`)
+      .then(r => r.json())
+      .then(d => {
+        sendBtn.disabled = false;
+        if (d.healthy) status.textContent = 'Ready. Type a message and click Send.';
+        else status.textContent = 'Cluster may be starting. You can try sending.';
+      })
+      .catch(() => {
+        status.textContent = 'Cannot reach gateway. Run: docker compose up -d';
+        sendBtn.disabled = false; // allow retry
+      });
+  </script>
+</body>
+</html>

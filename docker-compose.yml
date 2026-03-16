@@ -8,18 +8,24 @@ services:
     image: decentralizedllm-layer-node:latest
     container_name: decentralizedllm-node0
     environment:
-      NODE_LAYERS: "0-7"
+      NODE_LAYERS: "0-8"
       MODEL_NAME: Qwen/Qwen2.5-0.5B-Instruct
     ports:
       - "8001:8001"
     command: ["uvicorn", "node:app", "--host", "0.0.0.0", "--port", "8001"]
     networks:
       - decentralized-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
     deploy:
       resources:
         limits:
           cpus: "2"
-          memory: 2G
+          # memory: 4G  # Uncomment if OOM; model load needs ~2GB per node
 
   node1:
     build:
@@ -28,18 +34,27 @@ services:
     image: decentralizedllm-layer-node:latest
     container_name: decentralizedllm-node1
     environment:
-      NODE_LAYERS: "8-15"
+      NODE_LAYERS: "8-16"
       MODEL_NAME: Qwen/Qwen2.5-0.5B-Instruct
     ports:
       - "8002:8002"
-    command: ["uvicorn", "node:app", "--host", "0.0.0.0", "--port", "8002"]
+    command: ["sh", "-c", "sleep 45 && exec uvicorn node:app --host 0.0.0.0 --port 8002"]
     networks:
       - decentralized-net
+    depends_on:
+      node0:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 90s
     deploy:
       resources:
         limits:
           cpus: "2"
-          memory: 2G
+          # memory: 4G
 
   node2:
     build:
@@ -48,18 +63,27 @@ services:
     image: decentralizedllm-layer-node:latest
     container_name: decentralizedllm-node2
     environment:
-      NODE_LAYERS: "16-23"
+      NODE_LAYERS: "16-24"
       MODEL_NAME: Qwen/Qwen2.5-0.5B-Instruct
     ports:
       - "8003:8003"
-    command: ["uvicorn", "node:app", "--host", "0.0.0.0", "--port", "8003"]
+    command: ["sh", "-c", "sleep 45 && exec uvicorn node:app --host 0.0.0.0 --port 8003"]
     networks:
       - decentralized-net
+    depends_on:
+      node1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 90s
     deploy:
       resources:
         limits:
           cpus: "2"
-          memory: 2G
+          # memory: 4G
 
   # Coordinator: chains node0 -> node1 -> node2 for inference
   coordinator:

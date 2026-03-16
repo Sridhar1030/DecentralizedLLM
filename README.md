@@ -191,9 +191,13 @@ docker compose build
 docker compose up -d
 ```
 
-First run downloads the model (~1GB). Each node loads only its layers.
+First run downloads the model (~1GB). Each node loads only its layers. **If nodes exit with OOM (exit 137):** increase Docker Desktop memory (Settings → Resources) or uncomment `memory: 4G` in `docker-compose.yml` for each node.
 
-### 2. Test
+### 2. Live UI (watch tokens flow through nodes)
+
+Open **http://localhost:8080** in your browser. Type a message and click Send to see tokens move through Node 0 → Node 1 → Node 2 in real time.
+
+### 3. Test via API
 
 ```bash
 # Health
@@ -207,7 +211,7 @@ curl -s -X POST http://localhost:8080/v1/chat/completions \
   | jq '.choices[0].message.content'
 ```
 
-### 3. Failover demo
+### 4. Failover demo
 
 Stop a node (one third of the model goes down):
 
@@ -228,9 +232,10 @@ docker compose start node1
 
 | Service | URL | How to access |
 |---------|-----|---------------|
+| **Live Token Flow** | http://localhost:8080 | Watch tokens move through nodes in real time |
 | **Grafana** | http://localhost:3000 | Login: `admin` / `admin` → Dashboards |
 | **Prometheus** | http://localhost:9090 | Status → Targets |
-| **Gateway** | http://localhost:8080 | API; use `x-api-key: sridhar-intern-2026` |
+| **Gateway API** | http://localhost:8080 | Use `x-api-key: sridhar-intern-2026` |
 
 ---
 
