@@ -37,7 +37,7 @@
 
 ---
 
-# Sprint 0: Environment Setup (~15 min)
+# Sprint 0: Environment Setup (~15 min) — Done
 
 ## Step 0.1: Verify Docker Desktop
 
@@ -103,7 +103,7 @@ mkdir -p node gateway prometheus grafana/provisioning/datasources grafana/provis
 
 ---
 
-# Sprint 1: Inference Engine (~20 min)
+# Sprint 1: Inference Engine (~20 min) — Done
 
 ## Step 1.1: Start vllm-metal Server
 
@@ -152,7 +152,7 @@ curl -s http://localhost:8000/metrics | head -30
 
 ---
 
-# Sprint 2: Node Containers (~30 min)
+# Sprint 2: Node Containers (~30 min) — Done
 
 ## Step 2.1: Create node/requirements.txt
 
@@ -351,7 +351,7 @@ curl -s http://localhost:8001/v1/chat/completions \
 
 ---
 
-# Sprint 3: Gateway (~30 min)
+# Sprint 3: Gateway (~30 min) — Done
 
 ## Step 3.1: Create gateway/requirements.txt
 
@@ -514,7 +514,7 @@ curl -s -X POST http://localhost:8080/v1/chat/completions \
 
 ---
 
-# Sprint 4: Observability (~25 min)
+# Sprint 4: Observability (~25 min) — Done
 
 ## Step 4.1: Create prometheus/prometheus.yml
 
@@ -711,7 +711,7 @@ curl -s "http://localhost:9090/api/v1/targets" | jq '.data.activeTargets | lengt
 
 ---
 
-# Sprint 5: Public Access and Polish (~15 min)
+# Sprint 5: Public Access and Polish (~15 min) — Done
 
 ## Step 5.1: Start Cloudflare Tunnel
 
@@ -764,7 +764,7 @@ docker compose start node-2
 
 ---
 
-# Sprint 6: Demo Script and README (~15 min)
+# Sprint 6: Demo Script and README (~15 min) — Done
 
 ## Step 6.1: Create demo.sh
 
@@ -830,11 +830,15 @@ docker compose up -d
 cloudflared tunnel --url http://localhost:8080
 ```
 
-**URLs:**
+**URLs & UI Access:**
 
-- Gateway: [http://localhost:8080](http://localhost:8080)
-- Grafana: [http://localhost:3000](http://localhost:3000) (admin/admin)
-- Prometheus: [http://localhost:9090](http://localhost:9090)
+| Service | URL | Login / Notes |
+|---------|-----|---------------|
+| **Gateway** | http://localhost:8080 | API key: `sridhar-intern-2026` |
+| **Grafana** | http://localhost:3000 | Username: `admin` / Password: `admin` — Dashboards → Sridhar-Mesh Dashboard |
+| **Prometheus** | http://localhost:9090 | No login — Status → Targets to see scrape targets |
+
+Open **Grafana** in your browser: http://localhost:3000 → log in with admin/admin → go to Dashboards → Sridhar-Mesh Dashboard.
 
 ---
 

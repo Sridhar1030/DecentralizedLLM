@@ -1,0 +1,85 @@
+services:
+  node-1:
+    build: ./node
+    container_name: sridhar-node-1
+    environment:
+      NODE_ID: node-1
+      VLLM_URL: http://host.docker.internal:8000
+    ports:
+      - "8001:8000"
+    networks:
+      - decentralized-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  node-2:
+    build: ./node
+    container_name: sridhar-node-2
+    environment:
+      NODE_ID: node-2
+      VLLM_URL: http://host.docker.internal:8000
+    ports:
+      - "8002:8000"
+    networks:
+      - decentralized-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  node-3:
+    build: ./node
+    container_name: sridhar-node-3
+    environment:
+      NODE_ID: node-3
+      VLLM_URL: http://host.docker.internal:8000
+    ports:
+      - "8003:8000"
+    networks:
+      - decentralized-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  gateway:
+    build: ./gateway
+    container_name: sridhar-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - node-1
+      - node-2
+      - node-3
+    networks:
+      - decentralized-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sridhar-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--web.enable-lifecycle"]
+    networks:
+      - decentralized-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sridhar-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_HTTP_PORT: 3000
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - decentralized-net
+
+networks:
+  decentralized-net:
+    driver: bridge

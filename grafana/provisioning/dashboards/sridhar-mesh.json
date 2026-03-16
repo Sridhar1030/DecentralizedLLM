@@ -1,0 +1,52 @@
+{
+    "annotations": {"list": []},
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "fieldConfig": {"defaults": {}, "overrides": []},
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "id": 1,
+        "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+        "targets": [{"expr": "sum by (node_id) (rate(sridhar_node_requests_total[5m]))", "refId": "A"}],
+        "title": "Node Requests/sec",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "fieldConfig": {"defaults": {}, "overrides": []},
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "id": 2,
+        "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+        "targets": [{"expr": "rate(sridhar_gateway_latency_seconds_sum[5m]) / rate(sridhar_gateway_latency_seconds_count[5m])", "refId": "A"}],
+        "title": "Gateway Avg Latency (s)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "fieldConfig": {"defaults": {}, "overrides": []},
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "id": 3,
+        "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+        "targets": [{"expr": "sum by (status) (sridhar_gateway_requests_total)", "refId": "A"}],
+        "title": "Gateway Requests by Status",
+        "type": "timeseries"
+      }
+    ],
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": ["decentralized-llm"],
+    "templating": {"list": []},
+    "time": {"from": "now-15m", "to": "now"},
+    "timepicker": {},
+    "timezone": "",
+"title": "DecentralizedLLM Dashboard",
+  "uid": "decentralized-llm",
+    "version": 1,
+    "weekStart": ""
+  }
