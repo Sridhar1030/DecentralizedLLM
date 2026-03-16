@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY coordinator.py .
+
+ENV NODE0_URL=http://node0:8001
+ENV NODE1_URL=http://node1:8002
+ENV NODE2_URL=http://node2:8003
+EXPOSE 8080
+CMD ["uvicorn", "coordinator:app", "--host", "0.0.0.0", "--port", "8080"]

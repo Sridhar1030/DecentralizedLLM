@@ -1,58 +1,101 @@
+# DecentralizedLLM: Model split across 3 layer nodes. No single node holds the full LLM.
 services:
-  node-1:
-    build: ./node
-    container_name: sridhar-node-1
+  # Layer nodes: each holds 1/3 of model layers (custom pipeline parallelism for CPU)
+  node0:
+    build:
+      context: ./layer-nodes
+      dockerfile: Dockerfile.node
+    image: decentralizedllm-layer-node:latest
+    container_name: decentralizedllm-node0
     environment:
-      NODE_ID: node-1
-      VLLM_URL: http://host.docker.internal:8000
+      NODE_LAYERS: "0-7"
+      MODEL_NAME: Qwen/Qwen2.5-0.5B-Instruct
     ports:
-      - "8001:8000"
+      - "8001:8001"
+    command: ["uvicorn", "node:app", "--host", "0.0.0.0", "--port", "8001"]
     networks:
       - decentralized-net
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
 
-  node-2:
-    build: ./node
-    container_name: sridhar-node-2
+  node1:
+    build:
+      context: ./layer-nodes
+      dockerfile: Dockerfile.node
+    image: decentralizedllm-layer-node:latest
+    container_name: decentralizedllm-node1
     environment:
-      NODE_ID: node-2
-      VLLM_URL: http://host.docker.internal:8000
+      NODE_LAYERS: "8-15"
+      MODEL_NAME: Qwen/Qwen2.5-0.5B-Instruct
     ports:
-      - "8002:8000"
+      - "8002:8002"
+    command: ["uvicorn", "node:app", "--host", "0.0.0.0", "--port", "8002"]
     networks:
       - decentralized-net
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
 
-  node-3:
-    build: ./node
-    container_name: sridhar-node-3
+  node2:
+    build:
+      context: ./layer-nodes
+      dockerfile: Dockerfile.node
+    image: decentralizedllm-layer-node:latest
+    container_name: decentralizedllm-node2
     environment:
-      NODE_ID: node-3
-      VLLM_URL: http://host.docker.internal:8000
+      NODE_LAYERS: "16-23"
+      MODEL_NAME: Qwen/Qwen2.5-0.5B-Instruct
     ports:
-      - "8003:8000"
+      - "8003:8003"
+    command: ["uvicorn", "node:app", "--host", "0.0.0.0", "--port", "8003"]
     networks:
       - decentralized-net
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  # Coordinator: chains node0 -> node1 -> node2 for inference
+  coordinator:
+    build:
+      context: ./layer-nodes
+      dockerfile: Dockerfile.coordinator
+    image: decentralizedllm-coordinator:latest
+    container_name: decentralizedllm-coordinator
+    environment:
+      NODE0_URL: http://node0:8001
+      NODE1_URL: http://node1:8002
+      NODE2_URL: http://node2:8003
+    ports:
+      - "8081:8080"
+    depends_on:
+      - node0
+      - node1
+      - node2
+    networks:
+      - decentralized-net
 
   gateway:
     build: ./gateway
-    container_name: sridhar-gateway
+    container_name: decentralizedllm-gateway
     ports:
       - "8080:8080"
+    environment:
+      VLLM_URL: http://coordinator:8080
     depends_on:
-      - node-1
-      - node-2
-      - node-3
+      - coordinator
     networks:
       - decentralized-net
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: sridhar-prometheus
+    container_name: decentralizedllm-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -60,12 +103,10 @@ services:
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--web.enable-lifecycle"]
     networks:
       - decentralized-net
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   grafana:
     image: grafana/grafana:latest
-    container_name: sridhar-grafana
+    container_name: decentralizedllm-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"

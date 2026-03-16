@@ -1,39 +1,32 @@
-# Sridhar-Mesh – Decentralized Inference PoC
+# DecentralizedLLM – Pipeline Parallelism Implementation
 
 ## Sprint-by-Sprint Implementation Guide
 
-**Objective:** Simulate a 3-node decentralized LLM cluster on Apple Silicon with vllm-metal, automated failover, health-check gateway, and secure public tunneling.
+**Objective:** One LLM split across 3 devices using vLLM pipeline parallelism and Ray. Each device holds a different set of model layers; requests flow through all 3.
 
-**Prerequisites:** macOS on Apple Silicon (M1/M2/M3/M4), 32GB RAM recommended, Docker Desktop, Homebrew.
+**Prerequisites:** Docker, 16GB+ RAM. Apple Silicon or Linux x86 (vLLM CPU image).
 
 ---
 
-## Architecture Overview
+## Current Architecture (Pipeline Parallelism)
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │  Cloudflare Tunnel (HTTPS public URL)  │
-                    └─────────────────────┬─────────────────┘
-                                          │
-                    ┌─────────────────────▼─────────────────┐
-                    │  Gateway :8080                         │
-                    │  API Keys | Circuit Breaker | LB       │
-                    └─────────────────────┬─────────────────┘
-                                          │
-         ┌────────────────┬────────────────┼────────────────┬────────────────┐
-         │                │                │                │                │
-    ┌────▼────┐      ┌────▼────┐      ┌────▼────┐     ┌─────▼─────┐    ┌─────▼─────┐
-    │ node-1  │      │ node-2  │      │ node-3  │     │ Prometheus │    │  Grafana  │
-    │  :8001  │      │  :8002  │      │  :8003  │     │   :9090    │    │   :3000   │
-    └────┬────┘      └────┬────┘      └────┬────┘     └─────┬───────┘    └─────┬─────┘
-         │                │                │                │                 │
-         └────────────────┴────────────────┴────────────────┘                 │
-                                          │                                     │
-                    ┌─────────────────────▼─────────────────┐                    │
-                    │  vllm-metal (Host) :8000               │◄───────────────────┘
-                    │  Qwen2.5-0.5B-Instruct | /metrics     │
-                    └──────────────────────────────────────┘
+Request → Gateway → Head (vLLM API) → [Head layers] → [Worker1 layers] → [Worker2 layers] → Response
 ```
+
+| Device | Role | Holds |
+|--------|------|-------|
+| **Head** | Ray head + vLLM API | Layers 1–N |
+| **Worker 1** | Ray worker | Layers N+1–2N |
+| **Worker 2** | Ray worker | Layers 2N+1–end |
+
+**No device has the full model.** Pipeline parallelism splits the layers across 3 containers.
+
+---
+
+## Legacy Architecture (Request Proxies – Deprecated)
+
+The original design used 3 proxy nodes that forwarded to a single vLLM instance. That has been replaced by true model splitting (pipeline parallelism). See `node/` folder for the old proxy implementation.
 
 ---
 
